@@ -3,13 +3,18 @@ uvicorn[standard]
 openai
 langchain
 langchain-community
+langchain-huggingface
 tiktoken
 pydantic
 python-dotenv
 faiss-cpu
-pypdf                 # <--- This is crucial for PDF loading!
+PyPDF2
+pypdfium2
+pdfminer.six
 sentence-transformers
 scikit-learn
 numpy
 aiohttp
 httpx
+InstructorEmbedding
+pypdf

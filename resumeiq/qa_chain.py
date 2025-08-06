@@ -1,6 +1,6 @@
 # resumeiq/qa_chain.py
 
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
 from resumeiq.vectorstore import create_vectorstore
 
