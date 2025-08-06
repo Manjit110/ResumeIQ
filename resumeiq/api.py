@@ -5,8 +5,7 @@ from resumeiq.qa_chain import get_resume_bot
 import os
 
 # Set your OpenAI key here or use env variables
-os.environ["OPENAI_API_KEY"] = "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"  # <--- use your real key or ENV
-
+os.environ["OPENAI_API_KEY"] = "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"
 app = FastAPI(title="ResumeIQ API")
 
 app.add_middleware(
