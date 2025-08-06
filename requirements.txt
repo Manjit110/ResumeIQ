@@ -7,9 +7,7 @@ tiktoken
 pydantic
 python-dotenv
 faiss-cpu
-PyPDF2
-pypdfium2
-pdfminer.six
+pypdf                 # <--- This is crucial for PDF loading!
 sentence-transformers
 scikit-learn
 numpy
