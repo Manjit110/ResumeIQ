@@ -16,6 +16,6 @@ def create_vectorstore(pdf_path: str) -> DocArrayInMemorySearch:
         DocArrayInMemorySearch: In-memory vector store for similarity search
     """
     chunks = load_and_split_resume(pdf_path)
-    embeddings = HuggingFaceEmbeddings(model_name="hkunlp/instructor-xl")
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     vectorstore = DocArrayInMemorySearch.from_documents(chunks, embedding=embeddings)
     return vectorstore
