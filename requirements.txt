@@ -9,3 +9,6 @@ langchain-huggingface
 faiss-cpu
 pypdf
 sentence-transformers
+orjson
+httpx
+numpy

@@ -1,7 +1,12 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from starlette.middleware.cors import CORSMiddleware
-from resumeiq.qa_chain import get_resume_bot
+try:
+    from resumeiq.qa_chain import get_resume_bot
+except Exception as e:
+    print("Import error in api.py:", e)
+    raise
+
 import os
 
 # Set your OpenAI key here or use env variables
@@ -18,7 +23,12 @@ app.add_middleware(
 
 # Load the bot once on startup (NOW loads the pickled vectorstore)
 PICKLE_PATH = "data/resume_vectorstore.pkl"
-qa_bot = get_resume_bot(PICKLE_PATH)
+try:
+    qa_bot = get_resume_bot(PICKLE_PATH)
+except Exception as e:
+    print("Error loading vectorstore or initializing qa_bot:", e)
+    raise
+
 
 class QuestionRequest(BaseModel):
     question: str
