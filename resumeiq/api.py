@@ -10,7 +10,7 @@ except Exception as e:
 import os
 
 # Set your OpenAI key here or use env variables
-os.environ["OPENAI_API_KEY"] = "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"
+os.environ["OPENAI_API_KEY"] = "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"
 app = FastAPI(title="ResumeIQ API")
 
 app.add_middleware(
