@@ -5,7 +5,7 @@ from langchain_community.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
 
 def get_resume_bot(vectorstore_path):
-    # Load precomputed vectorstore from pickle
+
     with open(vectorstore_path, "rb") as f:
         vectorstore = pickle.load(f)
     retriever = vectorstore.as_retriever()
