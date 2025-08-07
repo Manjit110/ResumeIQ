@@ -23,6 +23,11 @@ app.add_middleware(
 
 # Load the bot once on startup (NOW loads the pickled vectorstore)
 PICKLE_PATH = "data/resume_vectorstore.pkl"
+if not os.path.isfile(PICKLE_PATH):
+    print("==> MISSING PICKLE FILE at", PICKLE_PATH, flush=True)
+else:
+    print("==> FOUND PICKLE FILE at", PICKLE_PATH, flush=True)
+
 try:
     qa_bot = get_resume_bot(PICKLE_PATH)
 except Exception as e:
