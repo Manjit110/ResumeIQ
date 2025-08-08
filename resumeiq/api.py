@@ -1,44 +1,55 @@
-from fastapi import FastAPI
+# resumeiq/api.py
+import os
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from starlette.middleware.cors import CORSMiddleware
-try:
-    from resumeiq.qa_chain import get_resume_bot
-except Exception as e:
-    print("Import error in api.py:", e)
-    raise
 
-import os
+from resumeiq.qa_chain import get_resume_bot
 
-# Set your OpenAI key here or use env variables
-os.environ["OPENAI_API_KEY"] = "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"
-app = FastAPI(title="ResumeIQ API")
+os.environ["OPENAI_API_KEY"] = "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"
+
+PICKLE_PATH = "data/resume_vectorstore.pkl"
+logger = logging.getLogger("resumeiq")
+logging.basicConfig(level=logging.INFO)
+
+class QuestionRequest(BaseModel):
+    question: str
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    app.state.qa_bot = None
+    try:
+        app.state.qa_bot = get_resume_bot(PICKLE_PATH)
+        logger.info("qa_bot initialized")
+    except Exception as e:
+        # Keep process alive so Azure can hit /health and you can see logs
+        logger.exception("Startup: failed to init qa_bot: %r", e)
+    yield
+    # Shutdown (nothing to clean yet)
+
+app = FastAPI(title="ResumeIQ API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # For dev; lock down in prod!
+    allow_origins=["*"],   # tighten in prod
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Load the bot once on startup (NOW loads the pickled vectorstore)
-PICKLE_PATH = "data/resume_vectorstore.pkl"
-if not os.path.isfile(PICKLE_PATH):
-    print("==> MISSING PICKLE FILE at", PICKLE_PATH, flush=True)
-else:
-    print("==> FOUND PICKLE FILE at", PICKLE_PATH, flush=True)
-
-try:
-    qa_bot = get_resume_bot(PICKLE_PATH)
-except Exception as e:
-    print("Error loading vectorstore or initializing qa_bot:", e)
-    raise
-
-
-class QuestionRequest(BaseModel):
-    question: str
+@app.get("/health")
+def health():
+    # report readiness (bot may still be None; that’s fine)
+    return {"ok": True, "botReady": app.state.qa_bot is not None}
 
 @app.post("/ask")
 def ask_question(req: QuestionRequest):
-    response = qa_bot.invoke({"query": req.question})
+    bot = app.state.qa_bot
+    if bot is None:
+        raise HTTPException(status_code=503, detail="Bot not ready")
+    response = bot.invoke({"query": req.question})
     return {"question": req.question, "answer": response}

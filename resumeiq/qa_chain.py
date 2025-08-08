@@ -1,7 +1,8 @@
 # resumeiq/qa_chain.py
 
 import pickle
-from langchain_community.chat_models import ChatOpenAI
+# from langchain_community.chat_models import ChatOpenAI  # old
+from langchain_openai import ChatOpenAI  # new
 from langchain.chains import RetrievalQA
 
 def get_resume_bot(vectorstore_path):
