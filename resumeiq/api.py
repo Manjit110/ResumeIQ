@@ -9,27 +9,47 @@ from starlette.middleware.cors import CORSMiddleware
 
 from resumeiq.qa_chain import get_resume_bot
 
-os.environ["OPENAI_API_KEY"] = "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"
+# ===== Local dev convenience (optional) =====
+# Put OPENAI_API_KEY in a local .env (never commit it)
+if os.getenv("ENV") != "prod":
+    try:
+        from dotenv import load_dotenv  # pip install python-dotenv (dev only)
+        load_dotenv()  # loads .env if present
+    except Exception:
+        pass
 
 PICKLE_PATH = "data/resume_vectorstore.pkl"
+
 logger = logging.getLogger("resumeiq")
 logging.basicConfig(level=logging.INFO)
+
+
+def _require_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        # Crash early with a clear error so logs tell you exactly what's missing
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
 
 class QuestionRequest(BaseModel):
     question: str
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Ensure key exists before we start
+    _ = _require_env("OPENAI_API_KEY")
+
     app.state.qa_bot = None
     try:
         app.state.qa_bot = get_resume_bot(PICKLE_PATH)
         logger.info("qa_bot initialized")
     except Exception as e:
-        # Keep process alive so Azure can hit /health and you can see logs
         logger.exception("Startup: failed to init qa_bot: %r", e)
     yield
-    # Shutdown (nothing to clean yet)
+    # nothing to clean up on shutdown (yet)
+
 
 app = FastAPI(title="ResumeIQ API", lifespan=lifespan)
 
@@ -41,15 +61,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/health")
 def health():
-    # report readiness (bot may still be None; that’s fine)
     return {"ok": True, "botReady": app.state.qa_bot is not None}
+
 
 @app.post("/ask")
 def ask_question(req: QuestionRequest):
     bot = app.state.qa_bot
     if bot is None:
         raise HTTPException(status_code=503, detail="Bot not ready")
+    # get_resume_bot should internally use OPENAI_API_KEY from env
     response = bot.invoke({"query": req.question})
     return {"question": req.question, "answer": response}
