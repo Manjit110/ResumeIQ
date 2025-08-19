@@ -1,3 +1,4 @@
+
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 # More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
@@ -46,13 +47,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write   # required for OIDC
-      contents: read
-
-    env:
-      AZURE_WEBAPP_NAME: resumeiq
-      # Set this in Repo Settings → Variables → Actions (not a secret):
-      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
 
     steps:
       - name: Download artifact from build job
@@ -67,18 +63,10 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_777B17FA25B5480CA9E58657323BE4E8 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_F284D26C65C74B00AA7AE4462F28FADA }}
 
-      # Push OPENAI_API_KEY from GitHub Secrets into Azure App Settings
-      - name: Set App Settings (OPENAI_API_KEY)
-        run: |
-          az webapp config appsettings set \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_WEBAPP_NAME" \
-            --settings OPENAI_API_KEY='${{ secrets.OPENAI_API_KEY }}'
+      - name: 'Deploy to Azure Web App'
 
-      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          app-name: 'resumeiq'
           slot-name: 'Production'
-          package: .
