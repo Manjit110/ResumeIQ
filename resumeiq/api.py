@@ -85,3 +85,22 @@ def ask_question(req: QuestionRequest):
     # get_resume_bot should internally use OPENAI_API_KEY from env
     response = bot.invoke({"query": req.question})
     return {"question": req.question, "answer": response}
+
+# --- Azure App Service warmup & health-friendly routes ---
+# This block makes sure Azure's probes get quick 200s so the site isn't recycled.
+
+import os
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
+
+# Liveness: fast 200 at root (Azure sometimes probes '/')
+@app.get("/", response_class=JSONResponse)
+def root():
+    return {"ok": True, "service": "ResumeIQ", "health": "/health"}
+
+# Azure warmup probe often calls this exact path; return 200 instead of 404.
+if os.getenv("WEBSITE_SITE_NAME"):
+    @app.get("/robots933456.txt", response_class=PlainTextResponse)
+    def _azure_warmup() -> str:
+        # Valid, tiny robots.txt content
+        return "User-agent: *\nDisallow:\n"
+
