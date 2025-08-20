@@ -1,6 +1,7 @@
 # resumeiq/api.py
 import os
 import logging
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -18,7 +19,9 @@ if os.getenv("ENV") != "prod":
     except Exception:
         pass
 
-PICKLE_PATH = "data/resume_vectorstore.pkl"
+# Resolve pickle path robustly (absolute path, works regardless of cwd)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PICKLE_PATH = os.path.normpath(os.path.join(BASE_DIR, "..", "data", "resume_vectorstore.pkl"))
 
 logger = logging.getLogger("resumeiq")
 logging.basicConfig(level=logging.INFO)
@@ -36,17 +39,24 @@ class QuestionRequest(BaseModel):
     question: str
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Ensure key exists before we start
-    _ = _require_env("OPENAI_API_KEY")
-
-    app.state.qa_bot = None
+def _preload_bot(app: FastAPI):
+    """Load the vectorstore/LLM in a background thread so startup doesn't block."""
     try:
         app.state.qa_bot = get_resume_bot(PICKLE_PATH)
         logger.info("qa_bot initialized")
     except Exception as e:
         logger.exception("Startup: failed to init qa_bot: %r", e)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Ensure key exists before we start
+    _require_env("OPENAI_API_KEY")
+
+    # Start with no bot; load it in the background to avoid blocking uvicorn bind
+    app.state.qa_bot = None
+    threading.Thread(target=_preload_bot, args=(app,), daemon=True).start()
+
     yield
     # nothing to clean up on shutdown (yet)
 
