@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from starlette.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 
 from resumeiq.qa_chain import get_resume_bot
 
@@ -19,9 +20,10 @@ if os.getenv("ENV") != "prod":
     except Exception:
         pass
 
-# Resolve pickle path robustly (absolute path, works regardless of cwd)
+# Resolve index dir robustly (absolute path, works regardless of cwd)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PICKLE_PATH = os.path.normpath(os.path.join(BASE_DIR, "..", "data", "resume_vectorstore.pkl"))
+DEFAULT_INDEX_DIR = os.path.normpath(os.path.join(BASE_DIR, "..", "data", "index"))
+INDEX_DIR = os.getenv("RESUME_INDEX_DIR", DEFAULT_INDEX_DIR)
 
 logger = logging.getLogger("resumeiq")
 logging.basicConfig(level=logging.INFO)
@@ -40,9 +42,9 @@ class QuestionRequest(BaseModel):
 
 
 def _preload_bot(app: FastAPI):
-    """Load the vectorstore/LLM in a background thread so startup doesn't block."""
+    """Load retriever/LLM in a background thread so startup doesn't block."""
     try:
-        app.state.qa_bot = get_resume_bot(PICKLE_PATH)
+        app.state.qa_bot = get_resume_bot(INDEX_DIR)
         logger.info("qa_bot initialized")
     except Exception as e:
         logger.exception("Startup: failed to init qa_bot: %r", e)
@@ -74,7 +76,11 @@ app.add_middleware(
 
 @app.get("/health")
 def health():
-    return {"ok": True, "botReady": app.state.qa_bot is not None}
+    return {
+        "ok": True,
+        "botReady": app.state.qa_bot is not None,
+        "indexDir": INDEX_DIR,
+    }
 
 
 @app.post("/ask")
@@ -82,16 +88,17 @@ def ask_question(req: QuestionRequest):
     bot = app.state.qa_bot
     if bot is None:
         raise HTTPException(status_code=503, detail="Bot not ready")
-    # get_resume_bot should internally use OPENAI_API_KEY from env
-    response = bot.invoke({"query": req.question})
-    return {"question": req.question, "answer": response}
+    # get_resume_bot should internally use OPENAI_API_KEY from env and FAISS index on disk
+    result = bot.invoke({"query": req.question})
+    # LangChain chains sometimes return dicts; handle both cases
+    if isinstance(result, dict):
+        answer = result.get("result") or result.get("answer") or str(result)
+        return {"question": req.question, "answer": answer}
+    else:
+        return {"question": req.question, "answer": str(result)}
+
 
 # --- Azure App Service warmup & health-friendly routes ---
-# This block makes sure Azure's probes get quick 200s so the site isn't recycled.
-
-import os
-from fastapi.responses import JSONResponse, PlainTextResponse, Response
-
 # Liveness: fast 200 at root (Azure sometimes probes '/')
 @app.get("/", response_class=JSONResponse)
 def root():
@@ -104,3 +111,7 @@ if os.getenv("WEBSITE_SITE_NAME"):
         # Valid, tiny robots.txt content
         return "User-agent: *\nDisallow:\n"
 
+# Avoid noisy 404s on /favicon.ico during probes
+@app.get("/favicon.ico")
+def favicon():
+    return Response(status_code=204)

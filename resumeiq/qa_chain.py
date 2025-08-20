@@ -1,20 +1,17 @@
 # resumeiq/qa_chain.py
-
-import pickle
-# from langchain_community.chat_models import ChatOpenAI  # old
-from langchain_openai import ChatOpenAI  # new
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 
-def get_resume_bot(vectorstore_path):
+INDEX_DIR = "data/resume_faiss"
 
-    with open(vectorstore_path, "rb") as f:
-        vectorstore = pickle.load(f)
-    retriever = vectorstore.as_retriever()
-
-    llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=retriever,
-        return_source_documents=False
+def get_resume_bot(index_dir: str = INDEX_DIR):
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+    vectorstore = FAISS.load_local(
+        index_dir,
+        embeddings,
+        allow_dangerous_deserialization=True,  # safer than pickle
     )
-    return qa_chain
+    retriever = vectorstore.as_retriever()
+    llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+    return RetrievalQA.from_chain_type(llm=llm, retriever=retriever, return_source_documents=False)
