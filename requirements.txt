@@ -7,9 +7,9 @@ langchain
 langchain-community
 langchain-huggingface
 langchain-openai
-faiss-cpu
 pypdf
 sentence-transformers
 orjson
 httpx
-numpy
+faiss-cpu==1.8.0.post1
+numpy==1.26.4
