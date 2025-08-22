@@ -6,7 +6,7 @@ from langchain.chains import RetrievalQA
 INDEX_DIR = "data/resume_faiss"
 
 def get_resume_bot(index_dir: str = INDEX_DIR):
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
     vectorstore = FAISS.load_local(
         index_dir,
         embeddings,
